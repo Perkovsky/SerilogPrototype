@@ -1,8 +1,8 @@
-﻿using Amazon;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Serilog;
-using Serilog.Events;
+using SerilogPrototype.Extensions;
 using SerilogPrototype.Models;
+using SerilogPrototype.Models.StructuredLogging;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -11,13 +11,24 @@ namespace SerilogPrototype
 {
 	class Program
 	{
-		public const string DEVICE_ID_PROPERTY_NAME = "DeviceId";
-		public const string DEVICE_ID = "www-44-mmm";
+		public const string LOG_NAME = "serilog-prototype";
 
 		static async Task EmulateWorkAsync()
 		{
 			await Task.CompletedTask;
-			Log.Logger.Information($"{{{DEVICE_ID_PROPERTY_NAME}}}. {nameof(EmulateWorkAsync)} has been called.", DEVICE_ID);
+			Log.Logger.Information($"{nameof(EmulateWorkAsync)} has been called.");
+		}
+
+		static void LogInnerException()
+		{
+			var argumentOutOfRange = new ArgumentOutOfRangeException("Arg. Out Of range");
+			var accessViolation = new AccessViolationException("Access exceprion error", argumentOutOfRange);
+			var appDomain = new AppDomainUnloadedException("AppDomain bla-bla-bla", accessViolation);
+			var internalBufferOverflow = new InternalBufferOverflowException("Internal---Buffer---Overflow", appDomain);
+			var exception = new Exception("Just test inner exceptions", internalBufferOverflow);
+			//string result = exception.ToString();
+			//Console.WriteLine(result);
+			Log.Logger.Error(exception, $"{nameof(LogInnerException)} has been called.");
 		}
 
 		static async Task Main(string[] args)
@@ -27,62 +38,56 @@ namespace SerilogPrototype
 				Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
 
 				var config = new ConfigurationBuilder()
-				.AddUserSecrets<AWSSettings>()
-				.SetBasePath(Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location))
-				.AddJsonFile("appsettings.json")
-				.Build();
+					.AddUserSecrets<AWSSettings>()
+					.SetBasePath(Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location))
+					.AddJsonFile("appsettings.json")
+					.Build();
 
 				var awsSettings = config.GetSection("AWSSettings").Get<AWSSettings>();
 
 				Log.Logger = new LoggerConfiguration()
 					.ReadFrom.Configuration(config)
-					.WriteTo.Map(DEVICE_ID_PROPERTY_NAME, /*"_general",*/ (name, wt) =>
-					{
-						wt.AmazonS3(
-							path: "log.txt",
-							bucketName: awsSettings.BucketURL,
-							endpoint: RegionEndpoint.USEast1,
-							awsAccessKeyId: awsSettings.AccessKeyId,
-							awsSecretAccessKey: awsSettings.AccessKey,
-							restrictedToMinimumLevel: LogEventLevel.Debug,
-							outputTemplate: "{Timestamp:o} [{Level:u3}] {Message}{NewLine}{Exception}",
-							bucketPath: $"DeviceLog/{name}",
-							batchSizeLimit: int.MaxValue,
-							batchingPeriod: TimeSpan.FromMinutes(5),
-							eagerlyEmitFirstEvent: false,
-							failureCallback: ex => Console.WriteLine($"An error occured in AmazonS3 sink: {ex.Message}")
-						);
-					})
+					.WriteToAmazonS3(awsSettings, LOG_NAME)
+					.WriteToElasticsearch(awsSettings, LOG_NAME)
 					.CreateLogger();
 
 				for (var x = 0; x < 200; x++)
 				{
 					var ex = new Exception($"Test - {x}");
-					Log.Logger.Error(ex, $"{{{DEVICE_ID_PROPERTY_NAME}}}", DEVICE_ID);
+					Log.Logger.Error(ex, "This is Error from cycle!");
 				}
 
 				await EmulateWorkAsync();
 
-				// without DeviceId
-				Log.Logger.Information("This is Information without device ID");
-				Log.Logger.Error("This is Error without device ID");
+				Log.Logger.Information("Information from console app!");
+				Log.Logger.Debug("This is Debug from console app!");
+				Log.Logger.Error("This is Error from console app!");
+				Log.Logger.Fatal("This is Fatal from console app!");
 
-				// DeviceId = "111222777"
-				Log.Logger.Information($"{{{DEVICE_ID_PROPERTY_NAME}}}. This is Information", "111222777");
-				Log.Logger.Debug($"{{{DEVICE_ID_PROPERTY_NAME}}}. This is Debug", "111222777");
-				Log.Logger.Error($"{{{DEVICE_ID_PROPERTY_NAME}}}. This is Error", "111222777");
+				// StructuredLogging
+				Log.Logger.Information<SystemLogStructuredLogging>(new SystemLogStructuredLogging
+				{
+					EntityId = 2235,
+					Type = "SerilogPrototype.Models.StructuredLogging.SystemLogStructuredLogging",
+					Created = DateTime.Now,
+					Component = "This is my Component",
+					Description = "Just some text"
+				});
+				Log.Logger.Information<TransactionLogStructuredLogging>(new TransactionLogStructuredLogging
+				{
+					BatchId = "1135-5882-2323-8914",
+					TenantTransactionId = 342353,
+					CreateDate = DateTime.Now,
+					Message = "Just some message"
+				});
 
-				Log.Logger.Information($"{{{DEVICE_ID_PROPERTY_NAME}}}. This is Information", DEVICE_ID);
-				Log.Logger.Debug($"{{{DEVICE_ID_PROPERTY_NAME}}}. This is Debug", DEVICE_ID);
-				Log.Logger.Error($"{{{DEVICE_ID_PROPERTY_NAME}}}. This is Error", DEVICE_ID);
-				Log.Information($"{{{DEVICE_ID_PROPERTY_NAME}}}. Information from console app!", DEVICE_ID);
-				Log.Error($"{{{DEVICE_ID_PROPERTY_NAME}}}. Error from console app!", DEVICE_ID);
-				Log.Logger.Fatal($"{{{DEVICE_ID_PROPERTY_NAME}}}. This is Fatal", DEVICE_ID);
+				LogInnerException();
 			}
 			catch (Exception ex)
 			{
-				Log.Fatal(ex, $"{{{DEVICE_ID_PROPERTY_NAME}}}. {typeof(Program).Namespace}: {nameof(Main)} caught an error.", DEVICE_ID);
+				Log.Fatal(ex, "{typeof(Program).Namespace}: {nameof(Main)} caught an error.");
 			}
+			finally
 			{
 				Console.WriteLine($"{Environment.NewLine}Press any key...");
 				Console.ReadKey();
