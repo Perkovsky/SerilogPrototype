@@ -2,7 +2,7 @@
 
 namespace SerilogPrototype.Models.StructuredLogging
 {
-	public class JobEventLogStructuredLogging : IStructuredLogging
+	public class JobEventLogStructuredLogging
 	{
 		public int JobId { get; set; }
 		public string EventId { get; set; }

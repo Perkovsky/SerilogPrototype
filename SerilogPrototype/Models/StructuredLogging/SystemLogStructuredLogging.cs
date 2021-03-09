@@ -2,7 +2,7 @@
 
 namespace SerilogPrototype.Models.StructuredLogging
 {
-	public class SystemLogStructuredLogging : IStructuredLogging
+	public class SystemLogStructuredLogging
 	{
 		public DateTime Created { get; set; }
 		public string Type { get; set; }

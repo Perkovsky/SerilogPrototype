@@ -2,7 +2,7 @@
 
 namespace SerilogPrototype.Models.StructuredLogging
 {
-	public class TransactionLogStructuredLogging : IStructuredLogging
+	public class TransactionLogStructuredLogging
 	{
 		public string BatchId { get; set; }
 		public string Message { get; set; }
