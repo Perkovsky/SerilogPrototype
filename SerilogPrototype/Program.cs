@@ -4,6 +4,8 @@ using SerilogPrototype.Extensions;
 using SerilogPrototype.Models;
 using SerilogPrototype.Models.StructuredLogging;
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -11,27 +13,55 @@ namespace SerilogPrototype
 {
 	class Program
 	{
-		public const string LOG_NAME = "serilog-prototype";
+		const string LOG_NAME = "serilog-prototype";
+		const int LENGTH = 100000;
 
-		static async Task EmulateWorkAsync()
+		static void AddSystemLogStructuredLogging(int id)
 		{
+			// StructuredLogging
+			Log.Logger.Information<SystemLogStructuredLogging>(new SystemLogStructuredLogging
+			{
+				EntityId = id,
+				Type = "SerilogPrototype.Models.StructuredLogging.SystemLogStructuredLogging",
+				Created = DateTime.Now,
+				Component = $"This is my Component #{id}",
+				Description = "Just some text"
+			});
+		}
+
+		static void FillLogUsingParallel()
+		{
+			Parallel.For(0, LENGTH, i => AddSystemLogStructuredLogging(i));
+		}
+
+		static void FillLogUsingTaskRun()
+		{
+			for (int i = 0; i < LENGTH; i++)
+			{
+				Task.Run(() => AddSystemLogStructuredLogging(i));
+			}
+		}
+
+		static async Task FillLogUsingWhenAll()
+		{
+			var tasks = new List<Task>();
+			for (int i = 0; i < LENGTH; i++)
+			{
+				tasks.Add(Task.Run(() => AddSystemLogStructuredLogging(i)));
+			}
+			await Task.WhenAll(tasks);
+		}
+
+		static async Task FillLogAsync()
+		{
+			for (int i = 0; i < LENGTH; i++)
+			{
+				AddSystemLogStructuredLogging(i);
+			}
 			await Task.CompletedTask;
-			Log.Logger.Information($"{nameof(EmulateWorkAsync)} has been called.");
 		}
 
-		static void LogInnerException()
-		{
-			var argumentOutOfRange = new ArgumentOutOfRangeException("Arg. Out Of range");
-			var accessViolation = new AccessViolationException("Access exceprion error", argumentOutOfRange);
-			var appDomain = new AppDomainUnloadedException("AppDomain bla-bla-bla", accessViolation);
-			var internalBufferOverflow = new InternalBufferOverflowException("Internal---Buffer---Overflow", appDomain);
-			var exception = new Exception("Just test inner exceptions", internalBufferOverflow);
-			//string result = exception.ToString();
-			//Console.WriteLine(result);
-			Log.Logger.Error(exception, $"{nameof(LogInnerException)} has been called.");
-		}
-
-		static async Task Main(string[] args)
+		static void Main(string[] args)
 		{
 			try
 			{
@@ -47,41 +77,22 @@ namespace SerilogPrototype
 
 				Log.Logger = new LoggerConfiguration()
 					.ReadFrom.Configuration(config)
-					.WriteToAmazonS3(awsSettings, LOG_NAME)
 					.WriteToElasticsearch(awsSettings, LOG_NAME)
 					.CreateLogger();
 
-				for (var x = 0; x < 200; x++)
-				{
-					var ex = new Exception($"Test - {x}");
-					Log.Logger.Error(ex, "This is Error from cycle!");
-				}
+				Serilog.Debugging.SelfLog.Enable(msg => Console.WriteLine(msg));
 
-				await EmulateWorkAsync();
+				var sw = new Stopwatch();
+				sw.Start();
 
-				Log.Logger.Information("Information from console app!");
-				Log.Logger.Debug("This is Debug from console app!");
-				Log.Logger.Error("This is Error from console app!");
-				Log.Logger.Fatal("This is Fatal from console app!");
+				FillLogUsingParallel();
+				//await FillLogUsingWhenAll();
+				//FillLogUsingTaskRun();
+				//_ = FillLogAsync();
 
-				// StructuredLogging
-				Log.Logger.Information<SystemLogStructuredLogging>(new SystemLogStructuredLogging
-				{
-					EntityId = 2235,
-					Type = "SerilogPrototype.Models.StructuredLogging.SystemLogStructuredLogging",
-					Created = DateTime.Now,
-					Component = "This is my Component",
-					Description = "Just some text"
-				});
-				Log.Logger.Information<TransactionLogStructuredLogging>(new TransactionLogStructuredLogging
-				{
-					BatchId = "1135-5882-2323-8914",
-					TenantTransactionId = 342353,
-					CreateDate = DateTime.Now,
-					Message = "Just some message"
-				});
-
-				LogInnerException();
+				sw.Stop();
+				Console.WriteLine(new string('-', 20));
+				Console.WriteLine($"Spent time : {sw.Elapsed}");
 			}
 			catch (Exception ex)
 			{
