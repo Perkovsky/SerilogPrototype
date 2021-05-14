@@ -106,7 +106,12 @@ namespace SerilogPrototype
 				var sw = new Stopwatch();
 				sw.Start();
 
-				FillLog();
+				var esService = new ElasticsearchService(awsSettings.ElasticsearchUrl, LOG_NAME);
+				//await esService.DeleteIndexAsync();
+				//AddSystemLogStructuredLogging(44);
+				_ = esService.AddSystemLogStructuredLoggingAsync();
+
+				//FillLog();
 				//FillLogUsingParallel();
 				//await FillLogUsingWhenAll();
 				//FillLogUsingTaskRun();

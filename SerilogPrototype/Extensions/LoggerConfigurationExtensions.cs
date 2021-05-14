@@ -37,6 +37,7 @@ namespace SerilogPrototype.Extensions
 			{
 				//BatchPostingLimit = 5000, //int.MaxValue,
 				//Period = TimeSpan.FromMinutes(5),
+				
 
 				ModifyConnectionSettings = x =>
 				{
