@@ -13,8 +13,10 @@ namespace SerilogPrototype
 {
 	class Program
 	{
-		const string LOG_NAME = "serilog-prototype";
+		const string LOG_NAME = "reproduce-429";
 		const int LENGTH = 100000;
+
+		static int errors = 0;
 
 		static void AddSystemLogStructuredLogging(int id)
 		{
@@ -61,6 +63,14 @@ namespace SerilogPrototype
 			await Task.CompletedTask;
 		}
 
+		static void FillLog()
+		{
+			for (int i = 0; i < LENGTH; i++)
+			{
+				AddSystemLogStructuredLogging(i);
+			}
+		}
+
 		static void Main(string[] args)
 		{
 			try
@@ -76,16 +86,28 @@ namespace SerilogPrototype
 				var awsSettings = config.GetSection("AWSSettings").Get<AWSSettings>();
 
 				Log.Logger = new LoggerConfiguration()
-					.ReadFrom.Configuration(config)
+					//.ReadFrom.Configuration(config)
 					.WriteToElasticsearch(awsSettings, LOG_NAME)
 					.CreateLogger();
 
-				Serilog.Debugging.SelfLog.Enable(msg => Console.WriteLine(msg));
+				Serilog.Debugging.SelfLog.Enable(msg =>
+				{
+					////Serilog.Debugging.SelfLog.Enable(msg => Console.WriteLine(msg));
+					//var file = File.CreateText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $@"serilog_selfLog_{DateTime.UtcNow.ToString($"yyyyMMddHHmmssfffffff")}.txt"));
+					//Serilog.Debugging.SelfLog.Enable(TextWriter.Synchronized(file));
+
+					if (!string.IsNullOrWhiteSpace(msg))
+					{
+						Console.WriteLine(msg);
+						Console.WriteLine($"-----> Errors: {++errors}");
+					}
+				});
 
 				var sw = new Stopwatch();
 				sw.Start();
 
-				FillLogUsingParallel();
+				FillLog();
+				//FillLogUsingParallel();
 				//await FillLogUsingWhenAll();
 				//FillLogUsingTaskRun();
 				//_ = FillLogAsync();
@@ -93,6 +115,7 @@ namespace SerilogPrototype
 				sw.Stop();
 				Console.WriteLine(new string('-', 20));
 				Console.WriteLine($"Spent time : {sw.Elapsed}");
+				Console.WriteLine($"Errors	   : {errors}");
 			}
 			catch (Exception ex)
 			{
