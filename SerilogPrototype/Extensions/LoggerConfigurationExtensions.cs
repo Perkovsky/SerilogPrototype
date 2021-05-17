@@ -1,5 +1,6 @@
 ﻿using Amazon;
 using Serilog;
+using Serilog.Context;
 using Serilog.Events;
 using Serilog.Sinks.Elasticsearch;
 using SerilogPrototype.Models;
@@ -37,6 +38,7 @@ namespace SerilogPrototype.Extensions
 			{
 				//BatchPostingLimit = 5000, //int.MaxValue,
 				//Period = TimeSpan.FromMinutes(5),
+				//QueueSizeLimit = 100000,
 				
 
 				ModifyConnectionSettings = x =>
@@ -58,6 +60,13 @@ namespace SerilogPrototype.Extensions
 				EmitEventFailure = EmitEventFailureHandling.WriteToSelfLog | EmitEventFailureHandling.WriteToFailureSink | EmitEventFailureHandling.RaiseCallback,
 				//FailureSink = failureSink,
 				//FailureCallback = e => failureCallback(new Exception($"Elasticsearch Sink has thrown an exception! Use debug mode for more information. MessageTemplate: {e.MessageTemplate}"))
+				FailureCallback = e =>
+				{
+					using (LogContext.PushProperty("FailedElasticsearchOnly", value: true))
+					{
+						Log.Write(e);
+					}
+				}
 			});
 		}
 	}

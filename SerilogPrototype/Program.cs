@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Serilog;
+using Serilog.Filters;
 using SerilogPrototype.Extensions;
 using SerilogPrototype.Models;
 using SerilogPrototype.Models.StructuredLogging;
@@ -13,7 +14,7 @@ namespace SerilogPrototype
 {
 	class Program
 	{
-		const string LOG_NAME = "reproduce-429";
+		const string LOG_NAME = "clean-test";
 		const int LENGTH = 100000;
 
 		static int errors = 0;
@@ -71,6 +72,11 @@ namespace SerilogPrototype
 			}
 		}
 
+		static bool IsElasticsearchStatusCode429(string msg)
+		{
+			return msg.Contains("Elasticsearch") && msg.Contains("Status code 429");
+		}
+
 		static void Main(string[] args)
 		{
 			try
@@ -87,7 +93,10 @@ namespace SerilogPrototype
 
 				Log.Logger = new LoggerConfiguration()
 					//.ReadFrom.Configuration(config)
-					.WriteToElasticsearch(awsSettings, LOG_NAME)
+					//.WriteToElasticsearch(awsSettings, LOG_NAME)
+					.WriteTo.Logger(c =>
+							c.Filter.ByExcluding(Matching.WithProperty("FailedElasticsearchOnly"))
+								.WriteToElasticsearch(awsSettings, LOG_NAME))
 					.CreateLogger();
 
 				Serilog.Debugging.SelfLog.Enable(msg =>
@@ -96,7 +105,7 @@ namespace SerilogPrototype
 					//var file = File.CreateText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $@"serilog_selfLog_{DateTime.UtcNow.ToString($"yyyyMMddHHmmssfffffff")}.txt"));
 					//Serilog.Debugging.SelfLog.Enable(TextWriter.Synchronized(file));
 
-					if (!string.IsNullOrWhiteSpace(msg))
+					if (!string.IsNullOrWhiteSpace(msg) && !IsElasticsearchStatusCode429(msg))
 					{
 						Console.WriteLine(msg);
 						Console.WriteLine($"-----> Errors: {++errors}");
@@ -106,14 +115,16 @@ namespace SerilogPrototype
 				var sw = new Stopwatch();
 				sw.Start();
 
-				var esService = new ElasticsearchService(awsSettings.ElasticsearchUrl, LOG_NAME);
-				//await esService.DeleteIndexAsync();
-				//AddSystemLogStructuredLogging(44);
-				_ = esService.AddSystemLogStructuredLoggingAsync();
+				//var esService = new ElasticsearchService(awsSettings.ElasticsearchUrl, LOG_NAME);
+				//_ = esService.DeleteIndexAsync();
+				//return;
 
-				//FillLog();
+				//AddSystemLogStructuredLogging(44);
+				//_ = esService.AddSystemLogStructuredLoggingAsync();
+
+				FillLog();
 				//FillLogUsingParallel();
-				//await FillLogUsingWhenAll();
+				//_ = FillLogUsingWhenAll();
 				//FillLogUsingTaskRun();
 				//_ = FillLogAsync();
 
@@ -124,7 +135,7 @@ namespace SerilogPrototype
 			}
 			catch (Exception ex)
 			{
-				Log.Fatal(ex, "{typeof(Program).Namespace}: {nameof(Main)} caught an error.");
+				Console.WriteLine(ex);
 			}
 			finally
 			{
