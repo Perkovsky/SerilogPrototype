@@ -14,7 +14,7 @@ namespace SerilogPrototype
 {
 	class Program
 	{
-		const string LOG_NAME = "clean-test";
+		const string LOG_NAME = "test-custom-settings";
 		const int LENGTH = 100000;
 
 		static int errors = 0;
@@ -119,10 +119,10 @@ namespace SerilogPrototype
 				//_ = esService.DeleteIndexAsync();
 				//return;
 
-				//AddSystemLogStructuredLogging(44);
+				AddSystemLogStructuredLogging(44);
 				//_ = esService.AddSystemLogStructuredLoggingAsync();
 
-				FillLog();
+				//FillLog();
 				//FillLogUsingParallel();
 				//_ = FillLogUsingWhenAll();
 				//FillLogUsingTaskRun();

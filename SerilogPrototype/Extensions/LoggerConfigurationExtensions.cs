@@ -5,6 +5,7 @@ using Serilog.Events;
 using Serilog.Sinks.Elasticsearch;
 using SerilogPrototype.Models;
 using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 
 namespace SerilogPrototype.Extensions
@@ -39,7 +40,24 @@ namespace SerilogPrototype.Extensions
 				//BatchPostingLimit = 5000, //int.MaxValue,
 				//Period = TimeSpan.FromMinutes(5),
 				//QueueSizeLimit = 100000,
-				
+
+
+				//NOTE: only work with
+				//	AutoRegisterTemplate = true,
+				//	AutoRegisterTemplateVersion = AutoRegisterTemplateVersion.ESv7,
+				//	TemplateName = $"mg-{logName}-template",
+				//	OverwriteTemplate = true,
+				//	RegisterTemplateFailure = RegisterTemplateRecovery.IndexAnyway,
+				TemplateCustomSettings = new Dictionary<string, string>
+				{
+					{ "index.refresh_interval", "53s" }
+				},
+				AutoRegisterTemplate = true,
+				AutoRegisterTemplateVersion = AutoRegisterTemplateVersion.ESv7,
+				TemplateName = $"mg-{logName}-template",
+				OverwriteTemplate = true,
+				RegisterTemplateFailure = RegisterTemplateRecovery.IndexAnyway,
+
 
 				ModifyConnectionSettings = x =>
 				{
@@ -50,11 +68,7 @@ namespace SerilogPrototype.Extensions
 						//.PingTimeout(TimeSpan.FromSeconds(10))	// just for test on UAT
 						;
 				},
-				//AutoRegisterTemplate = true,
-				//AutoRegisterTemplateVersion = AutoRegisterTemplateVersion.ESv7,
-				//TemplateName = $"mg-{logName}-template",
-				//OverwriteTemplate = true,
-				//RegisterTemplateFailure = RegisterTemplateRecovery.IndexAnyway,
+
 				DetectElasticsearchVersion = true,
 				IndexFormat = $"mg-{logName}-{{0:yyyy.MM}}",
 				EmitEventFailure = EmitEventFailureHandling.WriteToSelfLog | EmitEventFailureHandling.WriteToFailureSink | EmitEventFailureHandling.RaiseCallback,
