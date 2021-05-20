@@ -60,13 +60,13 @@ namespace SerilogPrototype.Extensions
 				EmitEventFailure = EmitEventFailureHandling.WriteToSelfLog | EmitEventFailureHandling.WriteToFailureSink | EmitEventFailureHandling.RaiseCallback,
 				//FailureSink = failureSink,
 				//FailureCallback = e => failureCallback(new Exception($"Elasticsearch Sink has thrown an exception! Use debug mode for more information. MessageTemplate: {e.MessageTemplate}"))
-				FailureCallback = e =>
-				{
-					using (LogContext.PushProperty("FailedElasticsearchOnly", value: true))
-					{
-						Log.Write(e);
-					}
-				}
+				//FailureCallback = e =>
+				//{
+				//	using (LogContext.PushProperty("FailedElasticsearchOnly", value: true))
+				//	{
+				//		Log.Write(e);
+				//	}
+				//}
 			});
 		}
 	}

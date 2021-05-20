@@ -93,10 +93,10 @@ namespace SerilogPrototype
 
 				Log.Logger = new LoggerConfiguration()
 					//.ReadFrom.Configuration(config)
-					//.WriteToElasticsearch(awsSettings, LOG_NAME)
-					.WriteTo.Logger(c =>
-							c.Filter.ByExcluding(Matching.WithProperty("FailedElasticsearchOnly"))
-								.WriteToElasticsearch(awsSettings, LOG_NAME))
+					.WriteToElasticsearch(awsSettings, LOG_NAME)
+					//.WriteTo.Logger(c =>
+					//		c.Filter.ByExcluding(Matching.WithProperty("FailedElasticsearchOnly"))
+					//			.WriteToElasticsearch(awsSettings, LOG_NAME))
 					.CreateLogger();
 
 				Serilog.Debugging.SelfLog.Enable(msg =>
@@ -105,7 +105,7 @@ namespace SerilogPrototype
 					//var file = File.CreateText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $@"serilog_selfLog_{DateTime.UtcNow.ToString($"yyyyMMddHHmmssfffffff")}.txt"));
 					//Serilog.Debugging.SelfLog.Enable(TextWriter.Synchronized(file));
 
-					if (!string.IsNullOrWhiteSpace(msg) && !IsElasticsearchStatusCode429(msg))
+					if (!string.IsNullOrWhiteSpace(msg) /*&& !IsElasticsearchStatusCode429(msg)*/)
 					{
 						Console.WriteLine(msg);
 						Console.WriteLine($"-----> Errors: {++errors}");
