@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 using Serilog;
 using Serilog.Filters;
 using SerilogPrototype.Extensions;
@@ -14,124 +15,43 @@ namespace SerilogPrototype
 {
 	class Program
 	{
-		const string LOG_NAME = "clean-test";
-		const int LENGTH = 100000;
-
-		static int errors = 0;
-
-		static void AddSystemLogStructuredLogging(int id)
+		static void CreateLogFiles(string folder, int fileCount = 1000, int contentRowCount = 1)
 		{
-			// StructuredLogging
-			Log.Logger.Information<SystemLogStructuredLogging>(new SystemLogStructuredLogging
+			Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
+
+			var content = JsonConvert.SerializeObject(new JobEventLogDetail
 			{
-				EntityId = id,
-				Type = "SerilogPrototype.Models.StructuredLogging.SystemLogStructuredLogging",
-				Created = DateTime.Now,
-				Component = $"This is my Component #{id}",
-				Description = "Just some text"
+				LogDate = DateTime.Now,
+				LogEventType = "Info",
+				Message = "This is a simple text message."
 			});
-		}
 
-		static void FillLogUsingParallel()
-		{
-			Parallel.For(0, LENGTH, i => AddSystemLogStructuredLogging(i));
-		}
-
-		static void FillLogUsingTaskRun()
-		{
-			for (int i = 0; i < LENGTH; i++)
+			for (int i = 0; i < fileCount; i++)
 			{
-				Task.Run(() => AddSystemLogStructuredLogging(i));
+				var filename = Path.Combine(folder, $"{DateTime.Now:yyyyMMddHHmmssfffffff}.json");
+				using (var file = File.CreateText(filename))
+				{
+					for (int k = 0; k < contentRowCount; k++)
+					{
+						file.WriteLine(content);
+					}
+				}
 			}
-		}
-
-		static async Task FillLogUsingWhenAll()
-		{
-			var tasks = new List<Task>();
-			for (int i = 0; i < LENGTH; i++)
-			{
-				tasks.Add(Task.Run(() => AddSystemLogStructuredLogging(i)));
-			}
-			await Task.WhenAll(tasks);
-		}
-
-		static async Task FillLogAsync()
-		{
-			for (int i = 0; i < LENGTH; i++)
-			{
-				AddSystemLogStructuredLogging(i);
-			}
-			await Task.CompletedTask;
-		}
-
-		static void FillLog()
-		{
-			for (int i = 0; i < LENGTH; i++)
-			{
-				AddSystemLogStructuredLogging(i);
-			}
-		}
-
-		static bool IsElasticsearchStatusCode429(string msg)
-		{
-			return msg.Contains("Elasticsearch") && msg.Contains("Status code 429");
 		}
 
 		static void Main(string[] args)
 		{
 			try
 			{
-				Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
-
-				var config = new ConfigurationBuilder()
-					.AddUserSecrets<AWSSettings>()
-					.SetBasePath(Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location))
-					.AddJsonFile("appsettings.json")
-					.Build();
-
-				var awsSettings = config.GetSection("AWSSettings").Get<AWSSettings>();
-
-				Log.Logger = new LoggerConfiguration()
-					//.ReadFrom.Configuration(config)
-					.WriteToElasticsearch(awsSettings, LOG_NAME)
-					//.WriteTo.Logger(c =>
-					//		c.Filter.ByExcluding(Matching.WithProperty("FailedElasticsearchOnly"))
-					//			.WriteToElasticsearch(awsSettings, LOG_NAME))
-					.CreateLogger();
-
-				Serilog.Debugging.SelfLog.Enable(msg =>
-				{
-					////Serilog.Debugging.SelfLog.Enable(msg => Console.WriteLine(msg));
-					//var file = File.CreateText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $@"serilog_selfLog_{DateTime.UtcNow.ToString($"yyyyMMddHHmmssfffffff")}.txt"));
-					//Serilog.Debugging.SelfLog.Enable(TextWriter.Synchronized(file));
-
-					if (!string.IsNullOrWhiteSpace(msg) /*&& !IsElasticsearchStatusCode429(msg)*/)
-					{
-						Console.WriteLine(msg);
-						Console.WriteLine($"-----> Errors: {++errors}");
-					}
-				});
-
 				var sw = new Stopwatch();
 				sw.Start();
 
-				//var esService = new ElasticsearchService(awsSettings.ElasticsearchUrl, LOG_NAME);
-				//_ = esService.DeleteIndexAsync();
-				//return;
-
-				//AddSystemLogStructuredLogging(44);
-				//_ = esService.AddSystemLogStructuredLoggingAsync();
-
-				FillLog();
-				//FillLogUsingParallel();
-				//_ = FillLogUsingWhenAll();
-				//FillLogUsingTaskRun();
-				//_ = FillLogAsync();
+				//CreateLogFiles("Logs1000");
+				CreateLogFiles("Logs100x100", 100, 100);
 
 				sw.Stop();
 				Console.WriteLine(new string('-', 20));
 				Console.WriteLine($"Spent time : {sw.Elapsed}");
-				Console.WriteLine($"Errors	   : {errors}");
 			}
 			catch (Exception ex)
 			{
